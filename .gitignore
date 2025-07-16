@@ -1,2 +1,4 @@
 data/
 venv/
+unprocessed_data/
+processed_data/

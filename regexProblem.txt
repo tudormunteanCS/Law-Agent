@@ -1,0 +1,19 @@
+Salutare am text in aceste posibile forme:
+var1 = (1)Sunt izvoare ale dreptului civil legea, uzanţele şi principiile generale ale dreptului.
+(2)În cazurile neprevăzute de lege se aplică uzanţele, iar în lipsa acestora, dispoziţiile legale privitoare la situaţii asemănătoare, iar când nu există asemenea dispoziţii, principiile generale ale dreptului.
+(3)În materiile reglementate prin lege, uzanţele se aplică numai în măsura în care legea trimite în mod expres la acestea.
+(4)Numai uzanţele conforme ordinii publice şi bunelor moravuri sunt recunoscute ca izvoare de drept.
+(5)Partea interesată trebuie să facă dovada existenţei şi a conţinutului uzanţelor. Uzanţele publicate în culegeri elaborate de către entităţile sau organismele autorizate în domeniu se prezumă că există, până la proba contrară.
+(6)În sensul prezentului cod, prin uzanţe se înţelege obiceiul (cutuma) şi uzurile profesionale.
+
+
+var2 = (1)Prezentul cod intră în vigoare la data care va fi stabilită în legea pentru punerea în aplicare a acestuia.*)
+*) În temeiul art. 220 alin. (1) din Legea nr. 71/2011 pentru punerea în aplicare a Legii nr. 287/2009 privind Codul civil, publicată în Monitorul Oficial al României, Partea I, nr. 409 din 10 iunie 2011, Codul civil intră în vigoare la data de 1 octombrie 2011.
+(2)În termen de 12 luni de la data publicării prezentului cod, Guvernul va supune Parlamentului spre adoptare proiectul de lege pentru punerea în aplicare a Codului civil.
+
+
+
+Eu vreau sa folosesc un regex pentru a sparge in grupuri fiecare aliniat de exemplu pentru var1:
+vreau sa fac match dupa (1) text1, (2) text2 , etc. Practic sa fac match la fiecare (n) LA INCEPUT DE LINIE!
+
+Problema apare cand am text de genul din var2 in care apare in aliniatul (1) o citare a altui aliniat: "În temeiul art. 220 alin. (1) din Legea nr. 71/2011 " care acest text ar trebui sa existe in aliniatul (1) Prezentul cod intră ....
