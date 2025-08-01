@@ -6,6 +6,7 @@ import re
 from docx import Document
 import xml.etree.ElementTree as ET
 
+
 def line_is_valid(line) -> bool:
     """
     a line is not valid if it is an empty line or starts with "SECŢIUNEA"/ "CAPITOLUL" / "SUBSECŢIUNEA"/ "TITLUL"
@@ -151,12 +152,12 @@ def get_rid_of_superscript(path_to_document_xml):
     tree = ET.parse(path_to_document_xml)
     root = tree.getroot()
 
-    #change superscript occurences
-    #for each w:p
+    # change superscript occurences
+    # for each w:p
     #   for each w:r
-        # for each w:rPr
-            #check if there is a <w:vertAlign w:val="superscript"/> inside the w:rPr and delete the w:vertAlign node
-            #get out of the current w:rPr and get in the next w:r and add a <w:t> containing a '.' like this; <w:t>.</w:t>
+    # for each w:rPr
+    # check if there is a <w:vertAlign w:val="superscript"/> inside the w:rPr and delete the w:vertAlign node
+    # get out of the current w:rPr and get in the next w:r and add a <w:t> containing a '.' like this; <w:t>.</w:t>
 
     NS = {
         'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
@@ -200,38 +201,35 @@ def get_rid_of_superscript(path_to_document_xml):
 
             i += 1
 
-
-    #write the new document.xml file
+    # write the new document.xml file
     tree.write(path_to_document_xml, xml_declaration=True, encoding='utf-8', method='xml')
 
 
-
-def process_superscript_data(file_path)-> Document:
+def process_superscript_data(file_path) -> Document:
     """
     processes a docx doc containing superscript data e.g Art. 162^1 converting each superscript to 162.1
     :param file_path: docx
     :return: document without superscript data
     """
-    #change file name from .docx to .zip
+    # change file name from .docx to .zip
     file_name = file_path.split('.')[0]
     zip_file_name = file_name + '.zip'
-    os.rename(file_path,zip_file_name)
+    os.rename(file_path, zip_file_name)
 
-    #extract .zip
-    with zipfile.ZipFile(zip_file_name,'r') as zip_ref:
+    # extract .zip
+    with zipfile.ZipFile(zip_file_name, 'r') as zip_ref:
         zip_ref.extractall(file_name)
 
-    #go trough filename (until .) filename/word/document.xml
+    # go trough filename (until .) filename/word/document.xml
     path = Path(file_name)
     path_to_document_xml = path / "word" / "document.xml"
 
-    #pass document to function so it changes superscript occurences
+    # pass document to function so it changes superscript occurences
     get_rid_of_superscript(path_to_document_xml)
-    #compress to zip zip_file_name
-    zip_directory_contents(file_name,f"processed_{file_name}.zip")
-    #change filename to docx after compressing to zip
-    os.rename(f"processed_{file_name}.zip",f"processed_{file_name}.docx")
-
+    # compress to zip zip_file_name
+    zip_directory_contents(file_name, f"processed_{file_name}.zip")
+    # change filename to docx after compressing to zip
+    os.rename(f"processed_{file_name}.zip", f"processed_{file_name}.docx")
 
 
 def zip_directory_contents(source_dir, output_zip):
@@ -241,7 +239,6 @@ def zip_directory_contents(source_dir, output_zip):
                 file_path = os.path.join(foldername, filename)
                 arcname = os.path.relpath(file_path, source_dir)  # relative path inside ZIP
                 zipf.write(file_path, arcname)
-
 
 
 if __name__ == "__main__":
