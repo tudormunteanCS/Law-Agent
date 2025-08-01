@@ -2,3 +2,4 @@ data/
 venv/
 unprocessed_data/
 processed_data/
+test_processed_data/
