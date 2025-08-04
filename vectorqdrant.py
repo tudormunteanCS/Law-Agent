@@ -22,6 +22,7 @@ def create_collection(client, collection_name, DIMENSIONS):
                 memmap_threshold=200_000,  # performant pt. >200k puncte
             ),
         )
+    print("Collection: " + collection_name + " exists.")
 
 
 def chunked(iterable, n):
@@ -56,20 +57,23 @@ if __name__ == "__main__":
     client = QdrantClient(
         url="https://14c4547c-e9c4-4793-ab4a-3834d017892c.europe-west3-0.gcp.cloud.qdrant.io:6333",
         api_key=qdrant_api_key,
-        timeout=60,
+        timeout=7200, # 2 hours timeout
         check_compatibility=False,
     )
     # creating the collection only ran once
     create_collection(client, collection_name, DIMENSIONS)
     all_files = list(data.glob("*.json"))
 
-    ids = []
-    payloads = []
-    vectors = []
     for file_path in tqdm(all_files):
+        ids = []
+        payloads = []
+        vectors = []
         with open(file_path, "r", encoding="utf-8") as f:
             json_data = json.load(f)
+        length = len(json_data)
+        count = 1
         for chunk in json_data:
+            print(f"Processing {file_path.name} {count}/{length}")
             text = chunk["text"]
             vectors.append(embedd_texts(text, openai_api_key, DIMENSIONS))
             payloads.append(
@@ -81,12 +85,18 @@ if __name__ == "__main__":
                 }
             )
             ids.append(str(uuid.uuid4()))
+            count += 1
+        # use the chunked method to upsert in batches
+        for batch in chunked(zip(ids, vectors, payloads), 500):
+            ids_batch, vectors_batch, payloads_batch = zip(*batch)
+            client.upsert(
+                collection_name=collection_name,
+                points=qdrant.Batch(
+                    ids=list(ids_batch),
+                    vectors=list(vectors_batch),
+                    payloads=list(payloads_batch)
+                )
+            )
+            print(f"Upserted {len(ids_batch)} points from {file_path.name} to collection {collection_name}.")
 
-    client.upsert(
-        collection_name=collection_name,
-        points=qdrant.Batch(
-            ids=ids,
-            vectors=vectors,
-            payloads=payloads
-        )
-    )
+
