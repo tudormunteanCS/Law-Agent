@@ -22,7 +22,8 @@ def create_collection(client, collection_name, DIMENSIONS):
                 memmap_threshold=200_000,  # performant pt. >200k puncte
             ),
         )
-    print("Collection: " + collection_name + " exists.")
+    else:
+        print("Collection: " + collection_name + " already exists.")
 
 
 def chunked(iterable, n):
@@ -49,14 +50,17 @@ def embedd_texts(texts, openai_api_key, dimensions):
 
 if __name__ == "__main__":
     openai_api_key = os.getenv("OPENAI_Lawgentic_API_KEY")
+    client = OpenAI(api_key=openai_api_key)
     qdrant_api_key = os.getenv('QDRANT_API_KEY')
     data = Path("processed_data")
     collection_name = "legi_ro"
     DIMENSIONS = 1536
 
+    cloud_url = "https://14c4547c-e9c4-4793-ab4a-3834d017892c.europe-west3-0.gcp.cloud.qdrant.io:6333"
+    local_host_url = "http://localhost:31333/"
     client = QdrantClient(
-        url="https://14c4547c-e9c4-4793-ab4a-3834d017892c.europe-west3-0.gcp.cloud.qdrant.io:6333",
-        api_key=qdrant_api_key,
+        url=local_host_url,
+        # api_key=qdrant_api_key,
         timeout=7200, # 2 hours timeout
         check_compatibility=False,
     )
