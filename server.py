@@ -2,7 +2,7 @@
 import json
 import os
 import textwrap
-
+import time
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from qdrant_client import QdrantClient
@@ -29,7 +29,13 @@ def home():
     return "Hello, World!"
 
 
-def retrieve_top_k_points(embedded_question, k=10):
+def retrieve_top_k_points(embedded_question, k=5):
+    """
+    Qdrant API call to retrieve top k similar semantic points from Qdrant
+    :param embedded_question:
+    :param k:
+    :return:
+    """
     # retrieve top k vectors from Qdrant
     results = client.query_points(
         collection_name=collection_name,
@@ -44,7 +50,6 @@ def build_context(best_points_payload: list[dict]):
     """
     stringify the best k points from payload and build a context for LLM
     :param best_points_payload:
-    :param question:
     :return:
     """
     blocks = []
@@ -68,7 +73,7 @@ def extract_answer_from_llm(best_points_payload, question):
         "Ești un asistent virtual in domeniul juridic care răspunde la întrebări legate de legislația românească."
         "Răspunde la întrebări STRICT folosind informațiile din contextul furnizat. Dacă contextul este insuficient, spune că nu ai suficiente informații pentru a răspunde la întrebare."
         "Pentru fiecare răspuns pune citații din contextul dat, precum și sursa, articolul și alineatul, dacă este cazul."
-
+        "Vreau un răspuns concis și la obiect."
     )
     instructiuni = textwrap.dedent(f"""
     INSTRUCȚIUNI: {system_msg}
@@ -76,17 +81,42 @@ def extract_answer_from_llm(best_points_payload, question):
     CONTEXT: {repr(context)}
     """)
     response = openai_client.responses.create(
-        model="gpt-5",
+        model="gpt-5-nano",
         input=instructiuni,
+        top_p=1.0,
+        reasoning={
+            "effort": "low"
+        },
+        text={
+            "verbosity": "low"
+        }
     )
     return response.output_text
 
 
 def process(question):
+    """
+    RAG workflow. Embeds the question, retrieves top k points from Qdrant, and extracts an answer from the LLM.
+    :param question: The question to be answered string
+    :return: answer from the LLM
+    """
+    embedd_start_time = time.perf_counter()
     embedded_question = embedd_texts(texts=question, openai_api_key=OPENAI_API_KEY, dimensions=DIMENSIONS)
+    embedd_end_time = time.perf_counter()
+    print(f"Embedding time: {embedd_end_time - embedd_start_time:.4f} seconds")
+
+    qdrant_retrieval_start_time = time.perf_counter()
     top_k_points = retrieve_top_k_points(embedded_question)
+    qdrant_retrieval_end_time = time.perf_counter()
+    print(f"Qdrant retrieval time: {qdrant_retrieval_end_time - qdrant_retrieval_start_time:.4f} seconds")
+
+    # Extract payloads
     best_points_payload = [x.payload for x in top_k_points]
+
+    llm_start_time = time.perf_counter()
     answer = extract_answer_from_llm(best_points_payload, question)
+    llm_end_time = time.perf_counter()
+    print(f"LLM processing time: {llm_end_time - llm_start_time:.4f} seconds")
     return answer
 
 
@@ -103,4 +133,4 @@ def answer_question():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000, threaded=True)
