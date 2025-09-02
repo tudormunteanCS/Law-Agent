@@ -29,7 +29,7 @@ def home():
     return "Hello, World!"
 
 
-def retrieve_top_k_points(embedded_question, k=5):
+def retrieve_top_k_points(embedded_question, k=7):
     """
     Qdrant API call to retrieve top k similar semantic points from Qdrant
     :param embedded_question:
@@ -120,6 +120,23 @@ def process(question):
     return answer
 
 
+def log_req(duration_ms, question, answer):
+    """
+    create a json with duration question and answer and log to a file by appending the data
+    :param duration_ms:
+    :param question:
+    :param answer:
+    :return:
+    """
+    log_data = {
+        "duration_ms": duration_ms,
+        "question": question,
+        "answer": answer
+    }
+    with open("request_logs.json", "a", encoding="utf-8") as f:
+        f.write(json.dumps(log_data, ensure_ascii=False) + "\n")
+
+
 @app.route("/answer", methods=["POST"])
 def answer_question():
     """
@@ -128,9 +145,14 @@ def answer_question():
     """
     data = request.get_json(silent=True) or {}
     question = data.get("question")
-    answer = process(question)
-    return jsonify({"question": question, "answer": answer})
+    start_time = time.perf_counter()
+    try:
+        answer = process(question)
+        return jsonify({"question": question, "answer": answer})
+    finally:
+        duration_ms = int((time.perf_counter() - start_time) * 1000)
+        log_req(duration_ms,question,answer)
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000, threaded=True)
+    app.run(host="0.0.0.0", debug=False, port=5000, threaded=True)
