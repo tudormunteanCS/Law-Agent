@@ -3,6 +3,7 @@ import json
 import os
 import textwrap
 import time
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from qdrant_client import QdrantClient
@@ -128,12 +129,14 @@ def log_req(duration_ms, question, answer):
     :param answer:
     :return:
     """
+    time_now = time.ctime()
     log_data = {
         "duration_ms": duration_ms,
         "question": question,
-        "answer": answer
+        "answer": answer,
+        "timestamp" : time_now
     }
-    with open("request_logs.json", "a", encoding="utf-8") as f:
+    with open("request_logs.jsonl", "a", encoding="utf-8") as f:
         f.write(json.dumps(log_data, ensure_ascii=False) + "\n")
 
 
