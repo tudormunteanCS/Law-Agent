@@ -14,15 +14,25 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 DIMENSIONS = 1536
 OPENAI_API_KEY = os.getenv("OPENAI_Lawgentic_API_KEY")
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
+
 local_host_url = "http://localhost:31333/"
 collection_name = "legi_ro"
+#localhost version (endava pc)
 
+# client = QdrantClient(
+#     url=local_host_url,
+#     check_compatibility=False,
+# )
+
+#cloud version
+qdrant_api_key = os.getenv("QDRANT_API_KEY")
+cloud_url = "https://14c4547c-e9c4-4793-ab4a-3834d017892c.europe-west3-0.gcp.cloud.qdrant.io:6333"
 client = QdrantClient(
-    url=local_host_url,
+    url=cloud_url,
+    api_key=qdrant_api_key,
     check_compatibility=False,
 )
-
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 
 @app.route("/")
@@ -134,7 +144,7 @@ def log_req(duration_ms, question, answer):
         "duration_ms": duration_ms,
         "question": question,
         "answer": answer,
-        "timestamp" : time_now
+        "timestamp": time_now
     }
     with open("request_logs.jsonl", "a", encoding="utf-8") as f:
         f.write(json.dumps(log_data, ensure_ascii=False) + "\n")
@@ -154,7 +164,7 @@ def answer_question():
         return jsonify({"question": question, "answer": answer})
     finally:
         duration_ms = int((time.perf_counter() - start_time) * 1000)
-        log_req(duration_ms,question,answer)
+        log_req(duration_ms, question, answer)
 
 
 if __name__ == "__main__":
