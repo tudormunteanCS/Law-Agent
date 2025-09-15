@@ -96,7 +96,7 @@ def extract_answer_from_llm(best_points_payload, question):
         input=instructiuni,
         top_p=1.0,
         reasoning={
-            "effort": "low"
+            "effort": "low" #maybe try with minimal too
         },
         text={
             "verbosity": "low"
