@@ -20,19 +20,19 @@ local_host_url = "http://localhost:31333/"
 collection_name = "legi_ro"
 #localhost version (endava pc)
 
-# client = QdrantClient(
-#     url=local_host_url,
-#     check_compatibility=False,
-# )
+client = QdrantClient(
+    url=local_host_url,
+    check_compatibility=False,
+)
 
 #cloud version
 qdrant_api_key = os.getenv("QDRANT_API_KEY")
-cloud_url = "https://14c4547c-e9c4-4793-ab4a-3834d017892c.europe-west3-0.gcp.cloud.qdrant.io:6333"
-client = QdrantClient(
-    url=cloud_url,
-    api_key=qdrant_api_key,
-    check_compatibility=False,
-)
+# cloud_url = "https://14c4547c-e9c4-4793-ab4a-3834d017892c.europe-west3-0.gcp.cloud.qdrant.io:6333"
+# client = QdrantClient(
+#     url=cloud_url,
+#     api_key=qdrant_api_key,
+#     check_compatibility=False,
+# )
 
 
 @app.route("/")
