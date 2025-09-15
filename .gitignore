@@ -4,6 +4,7 @@ unprocessed_data/
 processed_data/
 test_processed_data/
 request_logs.jsonl
+uv.lock
 
 __pycache__/
 .idea/
