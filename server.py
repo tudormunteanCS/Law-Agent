@@ -10,6 +10,7 @@ from flask_cors import CORS
 from qdrant_client import QdrantClient
 from vectorqdrant import embedd_texts
 from openai import OpenAI
+from RewrittenQuery import RewrittenQuery
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -76,7 +77,7 @@ def build_context(best_points_payload):
 def extract_answer_from_llm(best_points_payload, question):
     """
     Extracts an answer from the LLM based on the best k points from payload.
-    :param best_points_payload: Top 10 most relevant semantic points from Qdrant
+    :param best_points_payload: Top k most relevant semantic points from Qdrant
     :param question: The original question asked by the user
     :return: AI-generated answer based on the best points
     """
@@ -165,102 +166,101 @@ def tool_retrieve_top_k_points(query_text:str, k:int=5):
     )
     return results.points
 
-RETRIEVE_QDRANT_TOOL = {
-    "type": "function",
-        "name": "tool_retrieve_top_k_points",
-        "description": "Caută în Qdrant Vector DB cele mai relevante fragmente (payload-uri) din punct de vedere semantic pentru o interogare în română.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "query_text": {
-                    "type": "string",
-                    "description": "Prompt-ul de căutare în română.",
-                },
-                "k": {
-                    "type": "integer",
-                    "description": "Numărul de rezultate relevante de returnat. Implicit 5.",
-                },
-            },
-            "required": ["query_text"],
-        }
-}
+# RETRIEVE_QDRANT_TOOL = {
+#     "type": "function",
+#         "name": "tool_retrieve_top_k_points",
+#         "description": "Caută în Qdrant Vector DB cele mai relevante fragmente (payload-uri) din punct de vedere semantic pentru o interogare în română.",
+#         "parameters": {
+#             "type": "object",
+#             "properties": {
+#                 "query_text": {
+#                     "type": "string",
+#                     "description": "Prompt-ul de căutare în română.",
+#                 },
+#                 "k": {
+#                     "type": "integer",
+#                     "description": "Numărul de rezultate relevante de returnat. Implicit 5.",
+#                 },
+#             },
+#             "required": ["query_text"],
+#         }
+# }
 
-def _extract_tool_uses(response):
-    """
-    Returnează o listă de dict-uri cu {id, name, input}
-    compatibilă cu forma de 'tool_use' din Responses API.
-    """
-    tool_uses = []
-    # response.output este o listă de mesaje 'harmony'
-    for msg in getattr(response, "output", []) or []:
-        if getattr(msg, "type", None) == "message":
-            # msg.content e o listă de obiecte (text sau tool_use)
-            for item in msg.content or []:
-                if getattr(item, "type", None) == "tool_use":
-                    tool_uses.append({
-                        "id": item.id,
-                        "name": item.name,
-                        "input": item.input
-                    })
-    return tool_uses
+CONFIDENCE_THRESHOLD = 0.8
 
-def agentic_processing(question,max_calls=4,k=4):
+def agentic_processing(question,max_calls=3,k=7):
     """
-    Future implementation of an agentic approach to answer questions.
+    Agentic approach to RAG: iterative rewriting of the query, retrieval, and final answer generation.
     :param question: The question to be answered, string
     :return: answer from the LLM, string
     """
-    print("Starting agentic processing")
     system_msg = (
         "Ești un agent in domeniul juridic care momentan modeleaza promptul primit de user legat de legislația românească."
         "Strategie de rescriere a interogării (compact): extrage doar termenii juridici "
-        "esențiali (instituții, condiții, fapte, efecte), elimină speța/narațiunea, exemplele, "
+        "esențiali, elimină speța/narațiunea, exemplele, "
         "prepozițiile, articolele, conjuncțiile, pronumele, adverbele și punctuația. "
-        "Normalizează la forma de bază (singular/infinitiv), păstrează diacriticele. "
+        "păstrează diacriticele. "
         "Transformă întrebarea într-un șir scurt tip bag-of-words, fără semne de întrebare. "
-        "Adaugă 1 sinonim/variante relevante pentru fiecare termen-cheie (ex.: "
-        "condiții/criterii; protecție/ocrotire/reparare; interes legitim/interes personal; "
-        "răspundere civilă delictuală/faptă ilicită; prejudiciu/daună; vinovăție/culpă; "
-        "legătură cauzală/raport cauzal). Nu introduce articole sau acte normative nespecificate. "
+        "Nu introduce articole sau acte normative nespecificate. "
         "Output: un singur șir compact cu cuvinte-cheie separate prin spațiu."
+        "Exemplu 1: poate fi comis violul de o persoană juridică ?"
+        "Output 1: comitere viol persoană juridică"
+        "Exemplu 2: care este diferența între pedepsele complementare și pedepsele accesorii? "
+        "Output 2: diferență pedepse complementare pedepse accesorii"
+        "FOARTE IMPORTANT!!!: Verifica Prompturile rescrise deja pentru a nu repeta un query deja folosit. Foloseste un query diferit.(un singur sinonim la STRICT cel mai important termen juridic)"
     )
-    queries_used =[]
+    used_queries =[]
     used_payloads = []
     instructiuni = textwrap.dedent(f"""
     INSTRUCȚIUNI: {system_msg}
     ÎNTREBARE: {question}
     """)
-    tools = [RETRIEVE_QDRANT_TOOL]
     iterations = 0
     
     while iterations < max_calls:
         # Pas 1: cere modelului următoarea acțiune (tool_call)
-        resp = openai_client.responses.create(
+        query_rewritten_call_start = time.perf_counter()
+        resp = openai_client.responses.parse(
             model="gpt-5-nano",
             input=instructiuni,
-            tools=tools,
             reasoning={
-                "effort": "low"
+                "effort": "medium"
             },
             text={
             "verbosity": "low"
-        }
+            },
+            text_format=RewrittenQuery
         )
-        rewritten_query = resp.output_text.strip() # Extract rewritten query
-        print(f"Rewritten query: {rewritten_query}")
-        queries_used.append(rewritten_query)
+        query_rewritten_call_end = time.perf_counter()
+        
+        rewritten_query_obj = RewrittenQuery.model_validate_json(resp.output_text)
+        rewritten_query = rewritten_query_obj.rewritten_query
+        confidence = rewritten_query_obj.confidence
+        print("La iteratia " + str(iterations+1) + ", confidence: " + str(confidence))
+        instructiuni+=f"\nPrompt rescris numarul {iterations+1}: {rewritten_query}"
+        if rewritten_query in used_queries:
+            print("Query already used, stopping iteration.")
+            break
+        used_queries.append(rewritten_query)
 
         top_k_points = tool_retrieve_top_k_points(rewritten_query, k) # Call Qdrant tool
         best_points_payload = [x.payload for x in top_k_points]
+
+        context = build_context(best_points_payload)
         instructiuni+=f"\nCONTEXT: {repr(context)}"
         used_payloads.extend(best_points_payload)
 
         # Add here break condition
+        if confidence > CONFIDENCE_THRESHOLD:
+            print("Confidence threshold reached, stopping iteration.")
+            break
         iterations += 1
     
     # Final step: generate final answer using accumulated context
     final_answer = extract_answer_from_llm(best_points_payload, question)
     print("Final answer generated: " + final_answer)
+    print("Number calls: " + str(iterations))
+    print("Queries used: " + str(used_queries))
     return final_answer
 
     
@@ -271,19 +271,20 @@ def answer_question():
     A simple endpoint that returns an answer to a question.
     :return:
     """
-    print("Received request")
     data = request.get_json(silent=True) or {}
     question = data.get("question")
+    reasoning = data.get("reasoning")
     start_time = time.perf_counter()
     try:
-        # answer = process(question)
-        answer = agentic_processing(question)
+        if reasoning:
+            answer = agentic_processing(question)
+        else:
+            answer = process(question)
         return jsonify({"question": question, "answer": answer})
     finally:
         duration_ms = int((time.perf_counter() - start_time) * 1000)
         log_req(duration_ms, question, answer)
-
-
+        
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True, port=5000, threaded=True)
 
