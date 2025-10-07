@@ -5,6 +5,8 @@ processed_data/
 test_processed_data/
 request_logs.jsonl
 uv.lock
+.venv/
+.vscode/
 
 __pycache__/
 .idea/
